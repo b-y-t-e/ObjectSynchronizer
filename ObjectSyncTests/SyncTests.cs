@@ -11,7 +11,7 @@ namespace ObjectSync.Tests
     public class SyncTests
     {
         [TestMethod()]
-        public void ExecuteTest()
+        public void ExecuteTest0()
         {
             Osoba osoba1 = new Osoba
             {
@@ -31,7 +31,7 @@ namespace ObjectSync.Tests
         }
 
         [TestMethod()]
-        public void ExecuteTest2()
+        public void ExecuteTest1()
         {
             Osoba osoba1 = new Osoba
             {
@@ -58,6 +58,31 @@ namespace ObjectSync.Tests
             Assert.AreEqual(osoba1.Zwierzeta.Count, osoba2.Zwierzeta.Count);
             Assert.AreEqual(osoba1.Zwierzeta[0].Imie, osoba2.Zwierzeta[0].Imie);
             Assert.AreEqual(osoba1.Zwierzeta[0].Rodzaj, osoba2.Zwierzeta[0].Rodzaj);
+        }
+        [TestMethod()]
+        public void ExecuteTest2()
+        {
+            Osoba osoba1 = new Osoba
+            {
+                Imie = "andrzej",
+                Nazwisko = "pain",
+                Adres = new Adres
+                {
+                    Miasto = "gdańsk",
+                    Ulica = "długa"
+                }
+            };
+            Osoba osoba2 = new Osoba
+            {
+
+            };
+
+            new Sync().
+                Execute(osoba1, osoba2);
+
+            Assert.AreNotEqual(osoba1.Adres, osoba2.Adres);
+            Assert.AreEqual(osoba1.Adres.Miasto, osoba2.Adres.Miasto);
+            Assert.AreEqual(osoba1.Adres.Ulica, osoba2.Adres.Ulica);
         }
     }
 }

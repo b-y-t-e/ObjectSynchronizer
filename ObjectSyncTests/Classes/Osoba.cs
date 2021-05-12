@@ -6,9 +6,8 @@ namespace ObjectSync.Tests
     public class Osoba
     {
         public String Imie { get; set; }
-
         public String Nazwisko { get; set; }
-
+        public Adres Adres { get; set; }
         public List<Zwierze> Zwierzeta = new List<Zwierze>();
     }
 }

@@ -18,8 +18,10 @@ namespace ObjectSync
                 {
                     if (sourceProperty.Name != destinationProperty.Name)
                     {
-
+                        continue;
                     }
+                    var val = sourceProperty.GetValue(source);
+                    destinationProperty.SetValue(destination, val);
                 }
             }
         }
