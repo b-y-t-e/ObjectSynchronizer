@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ObjectSyncTests.Classes
+namespace ObjectSyncTests.Classes2
 {
     public class Adres
     {

@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ObjectSync;
+using ObjectSyncTests.Classes;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;

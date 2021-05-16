@@ -1,7 +1,8 @@
-﻿using System;
+﻿using ObjectSync;
+using System;
 using System.Collections.Generic;
 
-namespace ObjectSyncTests.Classes
+namespace ObjectSyncTests.Classes2
 {
     public class Osoba
     {
@@ -9,6 +10,7 @@ namespace ObjectSyncTests.Classes
         public String Nazwisko { get; set; }
         public Adres Adres { get; set; }
         public List<Zwierze> Zwierzeta { get; set; }
+        [SyncKey]
         public String ID { get; set; }
 
         public Osoba()

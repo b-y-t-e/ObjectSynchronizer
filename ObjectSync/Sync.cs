@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Fasterflect;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,6 +22,12 @@ namespace ObjectSync
             var sourceType = source.GetType();
             var destinationType = destination.GetType();
 
+            if (sourceType.IsCollection())
+            {
+                CopyListToDestination(source, destination, syncOptions, null, null);
+                return;
+            }
+
             var sourceProperties = sourceType.GetProperties();
             var destinationProperties = destinationType.GetProperties();
 
@@ -41,7 +48,7 @@ namespace ObjectSync
                 if (sourceProperty == null || destinationProperty == null)
                     continue;
 
-                if (sourceProperty.PropertyType.IsList())
+                if (sourceProperty.PropertyType.IsCollection())
                 {
                     CopyListToDestination(source, destination, syncOptions, sourceProperty, destinationProperty);
                 }
@@ -58,8 +65,8 @@ namespace ObjectSync
 
         private void CopyListToDestination(object source, object destination, SyncOptions syncOptions, PropertyInfo sourceProperty, PropertyInfo destinationProperty)
         {
-            var sourceList = sourceProperty.GetValue(source) as IList;
-            var destinationList = destinationProperty.GetValue(destination) as IList;
+            var sourceList = (sourceProperty?.GetValue(source) ?? source) as IEnumerable;
+            var destinationList = (destinationProperty?.GetValue(destination) ?? destination) as IEnumerable;
 
             if (sourceList == null)
             {
@@ -69,7 +76,7 @@ namespace ObjectSync
             {
                 if (destinationList == null)
                 {
-                    destinationList = Activator.CreateInstance(destinationProperty.PropertyType) as IList; ;
+                    destinationList = Activator.CreateInstance(destinationProperty.PropertyType) as IEnumerable;
                     destinationProperty.SetValue(destination, destinationList);
                 }
 
@@ -77,18 +84,18 @@ namespace ObjectSync
                 var itemsToDelete = BuildItemsToDelete(syncOptions, sourceList, destinationList);
                 var itemsToUpdate = BuildItemsToUpdate(syncOptions, sourceList, destinationList);
 
-                foreach (var item in itemsToAdd)
-                    destinationList.Add(item);
-
                 foreach (var item in itemsToDelete)
-                    destinationList.Remove(item);
+                    destinationList.CallMethod("Remove", item);
+
+                foreach (var item in itemsToAdd)
+                    destinationList.CallMethod("Add", item);
 
                 foreach (var item in itemsToUpdate)
                     Execute(item.source, item.destination, syncOptions);
             }
         }
 
-        private List<object> BuildItemsToAdd(SyncOptions syncOptions, IList sourceList, IList destinationList)
+        private List<object> BuildItemsToAdd(SyncOptions syncOptions, IEnumerable sourceList, IEnumerable destinationList)
         {
             var itemsToAdd = new List<object>();
             foreach (var sourceItem in sourceList)
@@ -99,7 +106,17 @@ namespace ObjectSync
                     bool areItemsSame = false;
                     if (syncOptions.TypeKeyDelegate == null)
                     {
-                        areItemsSame = sourceItem.Equals2(destinationItem);
+                        var syncKey = destinationItem.GetAttributeForProperty<SyncKeyAttribute>();
+                        if (syncKey.Property != null)
+                        {
+                            areItemsSame = sourceItem?.
+                                GetPropertyValue(syncKey.Property.Name)?.
+                                Equals2(destinationItem?.GetPropertyValue(syncKey.Property.Name)) == true;
+                        }
+                        else
+                        {
+                            areItemsSame = sourceItem.Equals2(destinationItem);
+                        }
                     }
                     else
                     {
@@ -128,7 +145,7 @@ namespace ObjectSync
             return itemsToAdd;
         }
 
-        private List<(object source, object destination)> BuildItemsToUpdate(SyncOptions syncOptions, IList sourceList, IList destinationList)
+        private List<(object source, object destination)> BuildItemsToUpdate(SyncOptions syncOptions, IEnumerable sourceList, IEnumerable destinationList)
         {
             var itemsToUpdate = new List<(object source, object destination)>();
             foreach (var sourceItem in sourceList)
@@ -138,7 +155,17 @@ namespace ObjectSync
                     bool areItemsSame = false;
                     if (syncOptions.TypeKeyDelegate == null)
                     {
-                        areItemsSame = sourceItem.Equals2(destinationItem);
+                        var syncKey = destinationItem.GetAttributeForProperty<SyncKeyAttribute>();
+                        if (syncKey.Property != null)
+                        {
+                            areItemsSame = sourceItem?.
+                                GetPropertyValue(syncKey.Property.Name)?.
+                                Equals2(destinationItem?.GetPropertyValue(syncKey.Property.Name)) == true;
+                        }
+                        else
+                        {
+                            areItemsSame = sourceItem.Equals2(destinationItem);
+                        }
                     }
                     else
                     {
@@ -165,7 +192,7 @@ namespace ObjectSync
         }
 
 
-        private List<object> BuildItemsToDelete(SyncOptions syncOptions, IList sourceList, IList destinationList)
+        private List<object> BuildItemsToDelete(SyncOptions syncOptions, IEnumerable sourceList, IEnumerable destinationList)
         {
             var itemsToDelete = new List<object>();
 
@@ -177,7 +204,17 @@ namespace ObjectSync
                     bool areItemsSame = false;
                     if (syncOptions.TypeKeyDelegate == null)
                     {
-                        areItemsSame = sourceItem.Equals2(destinationItem);
+                        var syncKey = destinationItem.GetAttributeForProperty<SyncKeyAttribute>();
+                        if (syncKey.Property != null)
+                        {
+                            areItemsSame = sourceItem?.
+                                GetPropertyValue(syncKey.Property.Name)?.
+                                Equals2(destinationItem?.GetPropertyValue(syncKey.Property.Name)) == true;
+                        }
+                        else
+                        {
+                            areItemsSame = sourceItem.Equals2(destinationItem);
+                        }
                     }
                     else
                     {
@@ -208,34 +245,67 @@ namespace ObjectSync
 
         private void CopyObjectToDestination(object source, object destination, SyncOptions syncOptions, PropertyInfo sourceProperty, PropertyInfo destinationProperty)
         {
-            var sourceValue = sourceProperty.GetValue(source);
-            var destinationValue = destinationProperty.GetValue(destination);
+            try
+            {
+                if (sourceProperty.GetMethod == null || sourceProperty.GetMethod.GetParameters().Length > 0)
+                    return;
 
-            if (sourceValue == null)
-            {
-                destinationProperty.SetValue(destination, null);
-            }
-            else
-            {
-                if (destinationValue == null)
+                var sourceValue = sourceProperty.GetValue(source);
+                var destinationValue = destinationProperty.GetValue(destination);
+
+                if (sourceValue == null)
                 {
-                    destinationValue = Activator.CreateInstance(destinationProperty.PropertyType);
-                    destinationProperty.SetValue(destination, destinationValue);
+                    destinationProperty.SetValue(destination, null);
                 }
+                else
+                {
+                    if (destinationValue == null)
+                    {
+                        destinationValue = Activator.CreateInstance(destinationProperty.PropertyType);
+                        destinationProperty.SetValue(destination, destinationValue);
+                    }
 
-                Execute(sourceValue, destinationValue, syncOptions);
+                    Execute(sourceValue, destinationValue, syncOptions);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw;
             }
         }
 
         private static void CopyPropertyToDestination(object source, object destination, PropertyInfo sourceProperty, PropertyInfo destinationProperty, SyncOptions syncOptions)
         {
+            if (sourceProperty == null || destinationProperty == null)
+                return;
+
             if (syncOptions?.TypeFieldFilterDelegate != null &&
                 (syncOptions.TypeFieldFilterDelegate(destination.GetType(), destinationProperty.Name) == false ||
                  syncOptions.TypeFieldFilterDelegate(destination.GetType(), sourceProperty.Name) == false))
                 return;
 
-            var sourceValue = sourceProperty.GetValue(source);
-            destinationProperty.SetValue(destination, sourceValue);
+            if (sourceProperty.GetAttributeForProperty<SyncOmitAttribute>().Property != null)
+                return;
+
+            if (destinationProperty.GetAttributeForProperty<SyncOmitAttribute>().Property != null)
+                return;
+
+            if (sourceProperty.GetMethod == null || sourceProperty.GetMethod.GetParameters().Length > 0)
+                return;
+
+            if (destinationProperty.SetMethod == null)
+                return;
+
+            try
+            {
+
+                var sourceValue = sourceProperty.GetValue(source);
+                destinationProperty.SetValue(destination, sourceValue);
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
         }
     }
 
